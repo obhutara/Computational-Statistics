@@ -1,0 +1,138 @@
+---
+title: "Lab3"
+author: "Omkar Bhutra"
+date: "2 February 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r warning=FALSE, echo=FALSE, include=FALSE}
+library(dplyr)
+library(plotly)
+library(ggplot2)
+library(xlsx)
+library(readxl)
+library(kableExtra)
+library(knitr)
+options(scipen=999)
+```
+
+##Question 1:
+###Cluster Sampling
+An opinion pool is assumed to be performed in several locations of Sweden by sending interviewers
+to this location. Of course, it is unreasonable from the fnancial point of view to visit
+each city. Instead, a decision was done to use random sampling without replacement with the
+probabilities proportional to the number of inhabitants of the city to select 20 cities. Explore
+the file population.xls. Note that names in bold are counties, not cities.
+
+```{r q1, message=FALSE, warning=FALSE, echo=FALSE}
+data = read.csv2("population.csv",header=TRUE)
+```
+
+2. Use a uniform random number generator to create a function that selects 1 city from the
+whole list by the probability scheme ordered above (do not use standard sampling functions
+present in R).
+```{r q2, message=FALSE, warning=FALSE, echo=FALSE}
+get_city <- function(data){
+data$Municipality <- as.character(data$Municipality)
+data$prob <- data$Population/sum(data$Population)
+#sorting the dataset
+data <- data %>% arrange(prob)
+data$cum_prob <- cumsum(data$prob)
+data$lead_cum_prob <- lead(data$cum_prob, n=1)
+# filling NA
+data$lag_cum_prob[1] <- 0
+data$lead_cum_prob[NROW(data)] <- 1
+set.seed(123)
+num <- runif(1,0,1)
+X <- ifelse(((num >= data$cum_prob) & (num <=  data$lead_cum_prob)), row.names(data), NA)
+X <- na.omit(X)
+data_name <- data[row.names(data) %in% X,]
+return(data_name$Municipality)
+}
+
+data$Municipality<-as.character(data$Municipality)
+get_city(data=data)
+```
+
+
+3. . Use the function you have created in step 2 as follows:
+(a) Apply it to the list of all cities and select one city
+(b) Remove this city from the list
+(c) Apply this function again to the updated list of the cities
+(d) Remove this city from the list
+(e) ... and so on until you get exactly 20 cities.
+
+```{r q3, message=FALSE, warning=FALSE, echo=FALSE}
+
+pop1<-data
+
+pop1<-pop1[!pop1$Municipality %in% get_city(data=pop1),]
+
+get_city(data=pop1)
+
+while(NROW(pop1)>20){
+  pop1<-pop1[!pop1$Municipality %in% get_city(data=pop1),]
+}
+
+```
+
+4. Run the program. Which cities were selected? What can you say about the size of the
+selected cities?
+5. Plot one histogram showing the size of all cities of the country. Plot another histogram
+showing the size of the 20 selected cities. Conclusions?
+
+```{r q4, message=FALSE, warning=FALSE, echo=FALSE}
+pop1$Municipality
+
+data$Flag<-ifelse(data$Municipality %in% pop1$Municipality,"Selected","Unselected")
+
+data %>% filter(Flag=="Selected") %>% ggplot(.,aes(Population))+geom_histogram(bins = 30)+ ggtitle("Histogram of Selected cities")
+data %>% filter(Flag == "Unselected") %>% ggplot(., aes(Population)) + geom_histogram(bins=30) + ggtitle("Histogram of Unselected Citites")
+ggplot(data, aes(Population, fill=Flag, colour=Flag)) + geom_histogram(bins=30) + ggtitle("Histogram of Unselected vs. Selected Citites")
+```
+
+
+#Question 2: Different distributions
+
+###The double exponential (Laplace) distribution is given by formula:
+
+$$ DE(\mu, \alpha) = \frac{\alpha}{2} e^{(-\alpha|x - \mu|)} $$
+The CDF is given by:
+
+$$F(x)=\int_{-\infty}^{x} f(x) dx$$
+
+$$F(x)=\int_{-\infty}^{x} \frac{\alpha}{2}e^{-\alpha(x-\mu)} dx ,~~~~~(if~~x>\mu)$$
+$$=1-\int_{x}^{\infty} \frac{\alpha}{2}e^{-\alpha(x-\mu)} dx$$
+
+$$=1-\frac{1}{2}e^{-\alpha(x-\mu)}$$
+
+$$F(x)=\int_{-\infty}^{x} \frac{\alpha}{2}e^{\alpha(x-\mu)} dx ,~~~~~(if~~x\leq\mu)$$
+
+$$=\frac{1}{2}e^{\alpha(x-\mu)}$$
+Inverse of CDF
+
+$$For~~x>\mu,~we~got~F(x)=1-\frac{1}{2}e^{-\alpha(x-\mu)}$$
+$$y=1-\frac{1}{2}e^{-\alpha(x-\mu)}$$
+$$\frac{ln(2-2y)-\alpha\mu}{-\alpha}=x$$
+$$For~U\sim U(0,1),~~~~~\frac{ln(2-2U)-\alpha\mu}{-\alpha}=X$$
+$$For~~x\leq\mu,~we~got~F(x)=\frac{1}{2}e^{\alpha(x-\mu)}$$
+$$y=\frac{1}{2}e^{\alpha(x-\mu)}$$
+$$\frac{ln(2y)}{\alpha}+\mu=x$$
+$$For~U\sim U(0,1),~~~~~\frac{ln(2U)}{\alpha}+\mu=X$$
+##1. Write a code generating double exponential distribution DE(0; 1) from Unif(0; 1) by using the inverse CDF method. Explain how you obtained that code step by step. Generate 10000 random numbers from this distribution, plot the histogram and comment whether the result looks reasonable.
+
+```{r}
+inverse_x = function(n,mu,alpha){
+  U <- runif(n,0,1)
+  X <- ifelse(U >0.5, log(2-2*U)/(-alpha)+mu, log(2*U)/(alpha)+mu)
+  return(X)
+}
+hist(inverse_x(n=10000,mu=0,alpha=1))
+```
+
+
+

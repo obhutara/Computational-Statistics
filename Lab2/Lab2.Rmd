@@ -1,0 +1,150 @@
+---
+title: "CompStatLab2"
+author: "Omkar Bhutra"
+date: "25 January 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r warning=FALSE, echo=FALSE, include=FALSE}
+library(dplyr)
+library(plotly)
+library(ggplot2)
+library(xlsx)
+library(readxl)
+library(kableExtra)
+library(knitr)
+
+```
+
+##Question 1:
+###Optimizing a model parameter
+####1
+```{r 1.1, message=FALSE, warning=FALSE, echo=FALSE}
+#importing and diving data
+mortality<-read.csv2("mortality_rate.csv")
+mortality$LMR<-log(mortality$Rate)
+n=dim(mortality)[1]
+set.seed(123456)
+id=sample(1:n , floor(n*0.5))
+train=mortality[id, ]
+test=mortality[-id, ]
+```
+
+```{r 1.2, message=FALSE, warning=FALSE, echo=FALSE}
+#defining the function "myMSE"
+myMSE<-function(lambda,pars,iterCounter = T){
+model<-loess(pars$Y~pars$X,enp.target = lambda)
+preds<-predict(model,newdata=pars$X_test)
+mse<-sum((pars$Y_test-preds)^2)/length(pars$Y_test)
+# If we want a iteration counter
+if(iterCounter){
+if(!exists("iterForMyMSE")){
+# Control if the variable exists in the global environemnt,
+# if not, create a variable and set the value to 1. This
+# would be the case for the first iteration
+# We will call the variable 'iterForMyMSE'
+assign("iterForMyMSE",
+value = 1,
+globalenv())
+} else {
+# This part is for the 2nd and the subsequent iterations.
+# Starting of with obtaining the current iteration number
+# and then overwrite the current value by the incremental
+# increase of the current value
+currentNr <- get("iterForMyMSE")
+assign("iterForMyMSE",
+value = currentNr + 1,
+globalenv())
+}
+}
+return(mse)
+}
+set.seed(123456)
+steps=seq(0.1,40,0.1)
+mses<-double(length(steps))
+mypars<-list(X=train$Day,Y=train$LMR,X_test=test$Day,Y_test=test$LMR)
+for(i in steps){
+mses[which(i==steps)]<-myMSE(i,mypars)
+}
+optimal_l=steps[which.min(mses)]
+optimal_mse=min(mses)
+plot(x=steps,y= mses,main = "Mse vs lambda",
+col=ifelse(steps==optimal_l,"red","black"))
+arrows(optimal_l+0.3, optimal_mse+0.3, x1 = optimal_l, y1 = optimal_mse,
+length = 0.15, angle = 30)
+text(optimal_l+0.3,optimal_mse+0.32,labels=c("optimal mse value"))
+```
+
+```{r 1.3, message=FALSE, warning=FALSE, echo=FALSE}
+iters1=iterForMyMSE
+results1=list("par"=optimal_l,"value"=optimal_mse)
+cat("The number of iterations using brute force are :", iters1,"\n",
+"The results from the brute force are :\n")
+```
+
+```{r , message=FALSE, warning=FALSE, echo=FALSE}
+set.seed(123456)
+remove("iterForMyMSE")
+xmin <- optimize(myMSE,pars=mypars,
+interval=c(0.1,40),maximum = FALSE,tol=0.01)
+iters2=iterForMyMSE
+cat("The number of iterations using lambda in [0.1,40] and accuracy 0:01 are :", iters2,"\n",
+"The output of optimize function is : \n")
+```
+
+```{r , message=FALSE, warning=FALSE, echo=FALSE}
+set.seed(123456)
+remove("iterForMyMSE")
+xmin1=optim(c(35), myMSE,pars=mypars,
+method = c( "BFGS"))
+iters3=iterForMyMSE
+cat("The new number of iterations using BFGS algorithm and lambda = 35 are :", iters3,"\n",
+"The output of optimize function is : \n")
+library(knitr)
+sumtable<-data.frame("Brute Force Method"=c(optimal_l,optimal_mse,iters1),
+"Optimize function"=c(xmin$minimum,xmin$objective,iters2),
+"Optim function BFGS"=c(xmin1$par,xmin1$value,iters3))
+rownames(sumtable)<-c("lambda","mse","iters")
+kable(sumtable)
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+load("data.RData")
+obtained_mean <- sum(data)/length(data)
+
+obtained_sigma <- sqrt(sum((data - obtained_mean)^2)*(1/length(data)))
+my_log_likehood <- function(pars){
+x<-data
+mu <- pars[1]
+sigma <- pars[2]
+n <- length(x)
+answer <- n*0.5*log(2*pi*sigma^2) + (0.5/sigma^2)* sum((x-mu)^2)
+return(answer)
+}
+gradient <- function(pars){
+x<-data
+mu <- pars[1]
+sigma <- pars[2]
+n <- length(x)
+grad_mu <- - (1/sigma^2)* sum(x-mu)
+grad_sig <- (n/sigma) - (1/sigma^3) * sum((x-mu)^2)
+return(c(grad_mu, grad_sig))
+}
+run1 <- optim(c(0,1), fn = my_log_likehood, gr=NULL, method = c("BFGS"))
+run2 <- optim(c(0,1), fn = my_log_likehood, gr=NULL, method = c("CG"))
+run3 <- optim(c(0,1), fn = my_log_likehood, gr=gradient, method = c("BFGS"))
+run4 <- optim(c(0,1), fn = my_log_likehood, gr=gradient, method = c("CG"))
+final <- NULL
+final$algorithm <- c("BFGS", "CG", "BFGS+gradient", "CG+gradient")
+final$parameters <- rbind(run1$par, run2$par, run3$par, run4$par)
+final$counts <- rbind(run1$counts, run2$counts, run3$counts, run4$counts)
+final$convergence <- rbind(run1$convergence, run2$convergence, run3$convergence, run4$convergence)
+final$value <- rbind(run1$value, run2$value, run3$value, run4$value)
+knitr::kable(as.data.frame(final), caption = "Table showing the summary from various optimization techniques")
+```
+
+

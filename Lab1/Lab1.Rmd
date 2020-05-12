@@ -1,0 +1,176 @@
+---
+title: "CompStatsLab1"
+author: "Omkar Bhutra"
+date: "29 February 2019"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libds, warning=FALSE, echo=FALSE, include=FALSE}
+library(dplyr)
+library(plotly)
+library(ggplot2)
+library(xlsx)
+library(readxl)
+library(boot)
+library(kableExtra)
+library(knitr)
+library(testthat)
+```
+
+## Question 1:
+### Be careful when comparing
+
+```{r q1, message=FALSE, warning=FALSE, echo=FALSE}
+options(digits=22)
+x1<-1/3;x2<-1/4
+if(x1-x2==1/12){
+  print("subtraction is correct")
+}else{
+  print("subtraction is wrong")
+}
+```
+Due to underflow the subtraction is displaying the same number although when the digits are increased using options we can see that the number is actually different.
+Underflow is the loss of significant digits.
+
+```{r q11,message=FALSE, warning=FALSE, echo=FALSE}
+x1<-1/3;x2<-1/4
+if(all.equal((x1-x2),(1/12))){
+  print("subtraction is correct")
+}else{
+  print("subtraction is wrong")
+}
+```
+
+```{r q111, message=FALSE, warning=FALSE, echo=FALSE}
+x1<-1;x2<-1/2
+if(x1-x2==1/2){
+  print("subtraction is correct")
+}else{
+  print("subtraction is wrong")
+}
+```
+Evaluating the results of the 2 snippets we see that in the first occasion we get the wrong print of the if-else statement.The problem lies to the fact that float numbers that have infinite numbers of decimals can't be represented exactly in the binary system in computers due to memory storage limitation.Using print(x1-x2,digits=16) and print(1/12,digits=16) we will see that the resulting floats are ( 0.08333333333333315,0.08333333333333329) respectfully and they are not the same causing the condition of unerflow which leads to the failure of the if statement and evaluation of else. 
+We can adress this problem using the "all.equals()" in the if statement instead of "==" to compare the numbers and we will see that the if statement will be executed and the correctly print message will be outputed.
+The second statement is evaluated correctly and we get the correct print output because 1/2 has finite numbers of decimals so we don't have the occurence of 
+underflow here.
+
+## Question 2:
+### Derivative
+```{r q2, message=FALSE, warning=FALSE, echo=FALSE}
+derivative<-function(x){
+  f<-function(x){
+    return(x)
+  }
+  epsilion<-10^-15
+  x<-(f(x+epsilion)-f(x))/epsilion
+  return(x)
+}
+
+derivative(x=1)
+
+derivative(x=100000)
+
+```
+
+The value of the derivative for when x=1 is 1.11022 while the value obtained for the derivative when x=100000 is 0. Looking at the equation algebraically it seems that the answer should be 0. But in the first case, when x=1 the addition of a small value epsilon retains its effect compared to the 2nd case and hence produces a different result than the expected value of 0.
+
+The true value for the function using the function $f(x)=x$ is $f'(x)= \frac{f(x+\epsilon)-f(x)}{\epsilon}=\frac{(x+\epsilon)-x}{\epsilon}=1$
+is always constant with value 1.Regarding the result of the derivative function we see that for $x=100000$ R doesn't take into account the decimals after a specific number of x and rounds the number to the nearest integer which is 100000 due to underflow occurance so the numeretor of the derivative formula becomes 0 leading finally to 0.When instead $x=1$ the numerator evaluated is  1.1102230246251565e-15 and the devision with epsilon $10^-15$ is just discards the last 15 decimals resulting  1.1102230246251565.
+
+
+## Question 3:
+### Variance
+```{r q31, message=FALSE, warning=FALSE, echo=FALSE}
+set.seed(12345)
+myvar<-function(x){
+n=length(x)
+var<-(1/(n-1))*(sum(x^2)-((1/n)*(sum(x)^2)))
+return(var)
+}
+x<-rnorm(n=10000,mean=10^8,sd=sqrt(1))
+myvar(x)
+```
+The plot above shows the dependence $Y_i$ on $i$ with the formula $Var(x)= \frac {\sum_{i=1}^n( x_i-\mu)^2}{n-1}$ where $\mu$ is the mean.
+Using the new formula where we center the points arround the mean we see that we have an improvement in the range of the errors and the deviation of the errors is steady and we can see an upper and a lower band with few errors lie beyond these linear bands represented with red in the plot.Also we can observe that the range of the errors is much smaller with means the formula used almost as good as the var() basic function in R.
+```{r q33, message=FALSE, warning=FALSE, echo=FALSE}
+Y <- c()
+for (i in 1:10000){
+options(digits = 22)
+Y[i] <- myvar(x[1:i])-var(x[1:i])
+}
+
+p1<-ggplot()+ geom_point(aes(1:10000,Y))+ labs(title="Plot of Y vs. i")
+p1
+```
+
+```{r q34, message=FALSE, warning=FALSE, echo=FALSE}
+set.seed(12345)
+varfun <- function(x){
+vari <- (1/(length(x) - 1)) * sum((x - mean(x))^2)
+return(vari)
+}
+
+x<-rnorm(n=10000,mean=10^8,sd=sqrt(1))
+varfun(x)
+
+Y <- c()
+for (i in 1:10000){
+Y[i] <- varfun(x[1:i])-var(x[1:i])
+}
+
+p2<-ggplot() + geom_point(aes(1:10000,Y))+ labs(title="Plot of Y vs. i")
+p2
+```
+The function does not perform as well as expected due to the numerical precision of the expression myvar(Xi)-var(Xi) which shows us negative values on most occurances.
+
+## Question 4:
+### Linear Algebra
+
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+tecator = read_excel("tecator.xls",sheet ="data" )
+X<-as.matrix(tecator[,c(2:102,104)])
+Y<-as.matrix(tecator[,c(103)])
+A<-t(X)%*%X
+b<-t(X)%*%Y
+kappa(A)
+```
+``````{r message=FALSE, warning=FALSE, echo=FALSE,error=FALSE}
+#solve(A,b)
+```
+
+Error in solve.default(A, b) : system is computationally singular: reciprocal condition number = 7.13971e-17
+
+Printing the number of kappa for the value of A matrix we see that is very big and that implies that the matrix is said to be ill-conditioned a very small
+change in matrix A will cause a large error in b and makes the solution unstable.
+
+```{r message=FALSE, warning=FALSE, echo=FALSE,error=FALSE}
+tecatorscale <- as.matrix(scale(tecator))
+Xscale <- as.matrix(tecatorscale[,-c(1,103)])
+yscale <- as.matrix(tecatorscale[,103])
+Ascale <- t(Xscale)%*%Xscale
+bscale <- t(Xscale)%*%yscale
+solve(Ascale,bscale)
+```
+
+
+This happens because the tolerence returned  is larger than the default threshold set by the function solve (argument tolerence) so an error returned and we cannot get a solution.The torrelance is related to conditon number by the function $tolerance=\frac{1}{condition number}$ so in our case 
+$tolerance=\frac{1}{kappa(A)}=7.425326e-16$ and it is bigger that the threshold of $7.425326e-17$ that is set by solve function as we see in the printed error resulting the end of execution of the function.
+Using the scaled data we where able to solve the linear system and get coefficients for every feature value.
+Printing the number of kappa again we can see that is still high but much less that the previous used with the unscaled data and we where able to solve the
+linear system and get coefficient values.
+
+When we scale the data we see that the linear system did not get any better or worse the linear dependences of the column features are still present but we manage to make the value of condition number smaller with scaling.This is happening because If we look at the definition of the condition number $k(A)=||A||*||A^-1||$ and just by making the range of the columns smaller the magnitude got smaller leading to a smaller value of condition number which is below threshold value of solve function and we manage to get the solution.The tolerence now is $tolerance=\frac{1}{kappa(A1)}=\frac{1}{490471518993}=2.038854e-12$ which is smaller than the default $7.425326e-17$ set by solve so now we are able to 
+get a solution.
+
+### Apendix
+```{r, ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
+```
+

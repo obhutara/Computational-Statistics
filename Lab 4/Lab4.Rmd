@@ -1,0 +1,33 @@
+---
+title: "Lab 4"
+author: "Omkar Bhutra"
+date: "14 February 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r warning=FALSE, echo=FALSE, include=FALSE}
+library(dplyr)
+library(plotly)
+library(ggplot2)
+library(xlsx)
+library(readxl)
+library(kableExtra)
+library(knitr)
+options(scipen=999)
+```
+
+##Question 2:
+###Gibbs Sampler
+```{r q1, message=FALSE, warning=FALSE, echo=FALSE}
+load(file = "chemical.RData")
+
+c<-as.data.frame(X)
+c$Y<-Y
+ggplot(c,aes(X,Y))+geom_point() +labs(title="scatter of measurements",x="day of the measurement",y="measured concentration of the chemical")
+
+
+```
